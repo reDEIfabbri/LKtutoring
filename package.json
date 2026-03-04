@@ -1,0 +1,51 @@
+{
+	"name": "lktutoring",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "prisma generate && vite dev --host",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"lint": "prettier --check . && eslint .",
+		"format": "prettier --write ."
+	},
+	"devDependencies": {
+		"@eslint/compat": "^2.0.2",
+		"@eslint/js": "^9.39.2",
+		"@sveltejs/adapter-auto": "^7.0.0",
+		"@sveltejs/kit": "^2.50.2",
+		"@sveltejs/vite-plugin-svelte": "^6.2.4",
+		"@types/node": "^24",
+		"@types/pg": "^8.16.0",
+		"@vitejs/plugin-basic-ssl": "^2.1.4",
+		"dotenv": "^17.2.4",
+		"eslint": "^9.39.2",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-svelte": "^3.14.0",
+		"globals": "^17.3.0",
+		"prettier": "^3.8.1",
+		"prettier-plugin-svelte": "^3.4.1",
+		"prisma": "^7.4.0",
+		"svelte": "^5.49.2",
+		"svelte-check": "^4.3.6",
+		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.54.0",
+		"vite": "^7.3.1"
+	},
+	"dependencies": {
+		"@fullcalendar/core": "^6.1.20",
+		"@fullcalendar/daygrid": "^6.1.20",
+		"@fullcalendar/interaction": "^6.1.20",
+		"@fullcalendar/timegrid": "^6.1.20",
+		"@prisma/adapter-pg": "^7.4.0",
+		"@prisma/client": "^7.4.0",
+		"@supabase/ssr": "^0.8.0",
+		"@supabase/supabase-js": "^2.95.3",
+		"ical-generator": "^10.0.0",
+		"pg": "^8.18.0"
+	}
+}
