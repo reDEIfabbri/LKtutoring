@@ -28,6 +28,9 @@
     let formPrice = 0;
     let formIsPaid = false;
 
+    // Helper to check role
+    $: isTeacher = data.user.role === 'TEACHER';
+
     // --- Reactive Logic for Unpaid Lessons ---
     $: unpaidLessons = data.lessons ? data.lessons.filter((l) => !l.isPaid) : [];
 
@@ -72,8 +75,11 @@
             slotMinTime: '08:00:00',
             slotMaxTime: '22:00:00',
             allDaySlot: false,
-            selectable: true,
-            editable: true,
+
+            // --- FIX: Permissions based on Role ---
+            selectable: isTeacher, // Only teachers can select empty slots
+            editable: isTeacher,   // Only teachers can drag/drop
+
             select: handleDateSelect,
             eventClick: handleEventClick,
             eventDrop: handleEventDrop,
@@ -85,6 +91,9 @@
     });
 
     function handleDateSelect(info: any) {
+        // Double check security
+        if (!isTeacher) return;
+
         resetForm();
         isEditing = false;
         const date = new Date(info.startStr);
@@ -100,7 +109,7 @@
         isEditing = true;
         formId = event.id;
         formTitle = event.title;
-        formContactId = data.user.role === 'TEACHER' ? props.studentId : props.teacherId;
+        formContactId = isTeacher ? props.studentId : props.teacherId;
 
         const start = event.start;
         formDate = start.toISOString().split('T')[0];
@@ -116,6 +125,11 @@
     }
 
     async function handleEventDrop(info: any) {
+        if (!isTeacher) {
+            info.revert(); // Undo the drag if not teacher
+            return;
+        }
+
         const event = info.event;
         const durationMs = event.end.getTime() - event.start.getTime();
         const durationMins = Math.round(durationMs / 60000);
@@ -130,13 +144,15 @@
     }
 
     async function handleSubmit() {
+        if (!isTeacher) return;
+
         modalError = '';
         const scheduledAt = new Date(`${formDate}T${formTime}:00`).toISOString();
 
         const payload = {
             title: formTitle,
-            studentId: data.user.role === 'TEACHER' ? formContactId : data.user.id,
-            teacherId: data.user.role === 'TEACHER' ? data.user.id : formContactId,
+            studentId: isTeacher ? formContactId : data.user.id,
+            teacherId: isTeacher ? data.user.id : formContactId,
             scheduledAt,
             duration: formDuration,
             price: formPrice,
@@ -165,6 +181,7 @@
     }
 
     async function handleDelete() {
+        if (!isTeacher) return;
         if (!confirm('Are you sure you want to delete this lesson?')) return;
         const response = await fetch(`/api/lessons/${formId}`, { method: 'DELETE' });
         if (response.ok) location.reload();
@@ -204,13 +221,20 @@
                 on:keydown={(e) => e.key === 'Escape' && (showModal = false)}
         >
             <div class="modal">
-                <h2>{isEditing ? 'Edit Lesson' : 'New Lesson'}</h2>
+                <h2>
+                    {#if isEditing}
+                        {isTeacher ? 'Edit Lesson' : 'Lesson Details'}
+                    {:else}
+                        New Lesson
+                    {/if}
+                </h2>
                 {#if modalError}<p class="error">{modalError}</p>{/if}
+
                 <form on:submit|preventDefault={handleSubmit}>
-                    <label>Title <input type="text" bind:value={formTitle} required /></label>
-                    {#if data.user.role === 'TEACHER'}
-                        <label
-                        >Student
+                    <label>Title <input type="text" bind:value={formTitle} required disabled={!isTeacher} /></label>
+
+                    {#if isTeacher}
+                        <label>Student
                             <select bind:value={formContactId} required>
                                 <option value="" disabled>Select a student</option>
                                 {#each data.contacts as contact}
@@ -218,35 +242,35 @@
                                 {/each}
                             </select>
                         </label>
+                    {:else}
+                        <!-- For students, just show who the teacher is (implied) or hide -->
+                        <p class="info-text">Teacher: {data.contacts.find(c => c.id === formContactId)?.email || 'Unknown'}</p>
                     {/if}
+
                     <div class="row">
-                        <label>Date <input type="date" bind:value={formDate} required /></label>
-                        <label>Time <input type="time" bind:value={formTime} required /></label>
+                        <label>Date <input type="date" bind:value={formDate} required disabled={!isTeacher} /></label>
+                        <label>Time <input type="time" bind:value={formTime} required disabled={!isTeacher} /></label>
                     </div>
-                    <label
-                    >Duration (min) <input
-                            type="number"
-                            bind:value={formDuration}
-                            required
-                            min="15"
-                            step="15"
-                    /></label
-                    >
-                    {#if data.user.role === 'TEACHER'}
-                        <div class="row">
-                            <label
-                            >Price <input type="number" bind:value={formPrice} min="0" step="0.01" /></label
-                            >
-                            <label class="checkbox-label"
-                            ><input type="checkbox" bind:checked={formIsPaid} /> Paid</label
-                            >
-                        </div>
-                    {/if}
+
+                    <label>Duration (min) <input type="number" bind:value={formDuration} required min="15" step="15" disabled={!isTeacher} /></label>
+
+                    <div class="row">
+                        <label>Price <input type="number" bind:value={formPrice} min="0" step="0.01" disabled={!isTeacher} /></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" bind:checked={formIsPaid} disabled={!isTeacher} />
+                            Paid
+                        </label>
+                    </div>
+
                     <div class="actions">
-                        {#if isEditing}<button type="button" class="delete-btn" on:click={handleDelete}
-                        >Delete</button
-                        >{/if}
-                        <button type="submit" class="save-btn">Save</button>
+                        {#if isTeacher}
+                            {#if isEditing}
+                                <button type="button" class="delete-btn" on:click={handleDelete}>Delete</button>
+                            {/if}
+                            <button type="submit" class="save-btn">Save</button>
+                        {:else}
+                            <button type="button" on:click={() => showModal = false}>Close</button>
+                        {/if}
                     </div>
                 </form>
             </div>
@@ -266,7 +290,7 @@
                 <h2>Unpaid Lessons Overview</h2>
 
                 {#if groupedUnpaid.length === 0}
-                    <p style="text-align: center; color: #666;">No unpaid lessons found. Good job!</p>
+                    <p style="text-align: center; color: #666;">No unpaid lessons found.</p>
                 {:else}
                     <div class="unpaid-list">
                         {#each groupedUnpaid as group}
@@ -302,167 +326,35 @@
 </main>
 
 <style>
-    main {
-        padding: 2rem;
-        font-family: sans-serif;
-    }
-    .calendar-container {
-        background: white;
-        padding: 1rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Header Actions */
-    .header-actions {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-    }
-    .unpaid-btn {
-        background-color: #ffc107;
-        color: #212529;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: bold;
-    }
-
-    /* Modal Styles */
-    .modal-backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    }
-    .modal {
-        background: white;
-        padding: 2rem;
-        border-radius: 8px;
-        width: 400px;
-        max-width: 90%;
-    }
-
-    /* Unpaid Modal Specifics */
-    .unpaid-modal {
-        width: 600px;
-    }
-    .unpaid-list {
-        max-height: 60vh;
-        overflow-y: auto;
-        margin: 1rem 0;
-    }
-    .group-card {
-        border: 1px solid #eee;
-        border-radius: 4px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-    .group-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 1px solid #eee;
-        padding-bottom: 0.5rem;
-        margin-bottom: 0.5rem;
-    }
-    .group-header h3 {
-        margin: 0;
-        font-size: 1.1rem;
-    }
-    .total-due {
-        font-weight: bold;
-        color: #dc3545;
-    }
-    .group-card ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-    .group-card li {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.25rem 0;
-        font-size: 0.9rem;
-    }
-    .lesson-date {
-        color: #666;
-        width: 100px;
-    }
-    .lesson-title {
-        flex: 1;
-    }
-    .lesson-price {
-        font-weight: bold;
-    }
-
-    /* Form Styles */
-    form {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    label {
-        display: flex;
-        flex-direction: column;
-        font-size: 0.9rem;
-        font-weight: bold;
-    }
-    input,
-    select {
-        padding: 0.5rem;
-        margin-top: 0.25rem;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-    }
-    .row {
-        display: flex;
-        gap: 1rem;
-    }
-    .row label {
-        flex: 1;
-    }
-    .checkbox-label {
-        flex-direction: row;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .checkbox-label input {
-        margin: 0;
-    }
-    .actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 1rem;
-        margin-top: 1rem;
-    }
-    button {
-        padding: 0.5rem 1rem;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: bold;
-    }
-    .save-btn {
-        background: #007bff;
-        color: white;
-    }
-    .delete-btn {
-        background: #dc3545;
-        color: white;
-    }
-    .error {
-        color: red;
-        background: #ffe6e6;
-        padding: 0.5rem;
-        border-radius: 4px;
-    }
+    main { padding: 2rem; font-family: sans-serif; }
+    .calendar-container { background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); }
+    .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .unpaid-btn { background-color: #ffc107; color: #212529; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal { background: white; padding: 2rem; border-radius: 8px; width: 400px; max-width: 90%; }
+    .unpaid-modal { width: 600px; }
+    .unpaid-list { max-height: 60vh; overflow-y: auto; margin: 1rem 0; }
+    .group-card { border: 1px solid #eee; border-radius: 4px; padding: 1rem; margin-bottom: 1rem; }
+    .group-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 0.5rem; }
+    .group-header h3 { margin: 0; font-size: 1.1rem; }
+    .total-due { font-weight: bold; color: #dc3545; }
+    .group-card ul { list-style: none; padding: 0; margin: 0; }
+    .group-card li { display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.9rem; }
+    .lesson-date { color: #666; width: 100px; }
+    .lesson-title { flex: 1; }
+    .lesson-price { font-weight: bold; }
+    form { display: flex; flex-direction: column; gap: 1rem; }
+    label { display: flex; flex-direction: column; font-size: 0.9rem; font-weight: bold; }
+    input, select { padding: 0.5rem; margin-top: 0.25rem; border: 1px solid #ccc; border-radius: 4px; }
+    input:disabled, select:disabled { background-color: #e9ecef; cursor: not-allowed; }
+    .info-text { margin: 0; color: #495057; font-size: 1rem; }
+    .row { display: flex; gap: 1rem; }
+    .row label { flex: 1; }
+    .checkbox-label { flex-direction: row; align-items: center; gap: 0.5rem; }
+    .checkbox-label input { margin: 0; }
+    .actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem; }
+    button { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .save-btn { background: #007bff; color: white; }
+    .delete-btn { background: #dc3545; color: white; }
+    .error { color: red; background: #ffe6e6; padding: 0.5rem; border-radius: 4px; }
 </style>

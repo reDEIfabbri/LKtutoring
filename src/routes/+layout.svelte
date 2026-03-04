@@ -25,7 +25,7 @@
 
 	async function handleLogout() {
 		await supabase.auth.signOut();
-		window.location.href = '/'; // Force a hard reload to clear state
+		window.location.href = '/';
 	}
 </script>
 
@@ -73,6 +73,10 @@
 		align-items: center;
 		justify-content: space-between;
 		box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+		/* --- FIX: Make navbar sticky and visible --- */
+		position: sticky;
+		top: 0;
+		z-index: 1000;
 	}
 
 	.logo {
