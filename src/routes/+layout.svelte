@@ -6,6 +6,7 @@
 	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 	import { page } from '$app/stores';
 	import { injectAnalytics } from '@vercel/analytics/sveltekit';
+	import { injectSpeedInsights } from '@vercel/speed-insights/sveltekit';
 	import type { LayoutData } from './$types';
 
 	export let data: LayoutData;
@@ -13,6 +14,7 @@
 	const supabase = createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
 
 	injectAnalytics();
+	injectSpeedInsights();
 
 	onMount(() => {
 		const {
