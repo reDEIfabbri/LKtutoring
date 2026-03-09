@@ -199,14 +199,26 @@
         formIsPaid = false;
         modalError = '';
     }
+
+    function copyCalendarLink() {
+        const url = `${window.location.origin}/api/calendar/${data.user.id}/calendar.ics`;
+        navigator.clipboard.writeText(url).then(() => {
+            alert('Calendar link copied to clipboard!');
+        });
+    }
 </script>
 
 <main>
     <div class="header-actions">
         <h1>Schedule</h1>
-        <button class="unpaid-btn" on:click={() => (showUnpaidModal = true)}>
-            Unpaid Lessons ({unpaidLessons.length})
-        </button>
+        <div class="header-buttons">
+            <button class="calendar-btn" on:click={copyCalendarLink}>
+                Sync to Calendar
+            </button>
+            <button class="unpaid-btn" on:click={() => (showUnpaidModal = true)}>
+                Unpaid Lessons ({unpaidLessons.length})
+            </button>
+        </div>
     </div>
 
     <div class="calendar-container" bind:this={calendarEl}></div>
@@ -329,7 +341,9 @@
     main { padding: 2rem; font-family: sans-serif; }
     .calendar-container { background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); }
     .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .header-buttons { display: flex; gap: 1rem; }
     .unpaid-btn { background-color: #ffc107; color: #212529; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .calendar-btn { background-color: #17a2b8; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; }
     .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
     .modal { background: white; padding: 2rem; border-radius: 8px; width: 400px; max-width: 90%; }
     .unpaid-modal { width: 600px; }
